@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+
+  <!-- Homepage -->
+  <url>
+    <loc>{{ site_url }}/</loc>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+  </url>
+
+  <!-- Category pages -->
+  {% for cat in categories %}
+  <url>
+    <loc>{{ site_url }}/category/{{ cat | urlencode }}</loc>
+    <changefreq>daily</changefreq>
+    <priority>0.8</priority>
+  </url>
+  {% endfor %}
+
+  <!-- Articles -->
+  {% for article in articles %}
+  <url>
+    <loc>{{ site_url }}/article/{{ article.slug }}</loc>
+    <lastmod>{{ (article.updated_at or article.published_at) | format_iso }}</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  {% endfor %}
+
+</urlset>

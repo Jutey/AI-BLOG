@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+
+{% block extra_head %}
+<meta property="og:title" content="{{ site_name }} — {{ site_tagline }}">
+<meta property="og:description" content="Clear personal finance guides on credit, debt, insurance, banking, and investing. Updated daily.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="{{ site_url }}">
+<meta property="og:site_name" content="{{ site_name }}">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="{{ site_name }} — {{ site_tagline }}">
+<meta name="twitter:description" content="Clear personal finance guides on credit, debt, insurance, banking, and investing. Updated daily.">
+<link rel="canonical" href="{{ site_url }}">
+<script type="application/ld+json">{{ org_jsonld | safe }}</script>
+<script type="application/ld+json">{{ website_jsonld | safe }}</script>
+{% endblock %}
+
+{% block content %}
+
+<!-- ─── HERO ─────────────────────────────────────────────────────── -->
+<section class="hero">
+  <div class="hero-badge">
+    <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><circle cx="5" cy="5" r="5" fill="#2563EB" opacity="0.3"/><circle cx="5" cy="5" r="2.5" fill="#2563EB"/></svg>
+    Updated daily &nbsp;·&nbsp; {{ total_articles }} guides published
+  </div>
+  <h1>Personal finance,<br>drafted daily.</h1>
+  <p class="hero-sub">Clear guides on credit, debt, insurance, banking, and building better money habits — written fresh every morning.</p>
+  <div class="hero-actions">
+    {% if featured %}
+      <a href="/article/{{ featured.slug }}" class="btn btn-primary">Read latest guide</a>
+    {% endif %}
+    <a href="#guides" class="btn btn-secondary">Browse all topics</a>
+  </div>
+</section>
+
+<!-- ─── MAIN CONTENT ──────────────────────────────────────────────── -->
+<div class="container">
+
+  <!-- Category pills -->
+  {% if active_categories %}
+  <div class="section-sm">
+    <div class="category-pills" role="navigation" aria-label="Browse by category">
+      <a href="/" class="category-pill">All guides</a>
+      {% for cat in active_categories %}
+        <a href="/category/{{ cat | urlencode }}" class="category-pill">{{ cat }}</a>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Featured article -->
+  {% if featured %}
+  <div class="featured-wrap" id="guides">
+    <div class="featured-card">
+      <div class="featured-eyebrow">
+        <span class="featured-label">Latest Guide</span>
+        <span class="badge {{ featured.category | category_class }}">{{ featured.category }}</span>
+      </div>
+      <h2><a href="/article/{{ featured.slug }}">{{ featured.title }}</a></h2>
+      {% if featured.excerpt %}
+        <p class="featured-excerpt">{{ featured.excerpt }}</p>
+      {% endif %}
+      <div class="featured-footer">
+        <a href="/article/{{ featured.slug }}" class="btn btn-primary btn-sm">Read guide &rarr;</a>
+        <div class="featured-meta">
+          {% if featured.reading_time %}
+            <span>{{ featured.reading_time }} min read</span>
+            <span class="meta-dot"></span>
+          {% endif %}
+          <span>{{ featured.published_at | format_date }}</span>
+          {% if featured.word_count %}
+            <span class="meta-dot"></span>
+            <span>{{ "{:,}".format(featured.word_count) }} words</span>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Article grid -->
+  {% if articles %}
+  <div style="margin-bottom: 16px;">
+    <p class="section-eyebrow">Latest money guides</p>
+  </div>
+  <div class="article-grid" style="margin-bottom: 64px;">
+    {% for article in articles %}
+    <article class="article-card">
+      <div class="card-badge">
+        <span class="badge {{ article.category | category_class }}">{{ article.category }}</span>
+      </div>
+      <h2 class="card-title">
+        <a href="/article/{{ article.slug }}">{{ article.title }}</a>
+      </h2>
+      {% if article.excerpt %}
+        <p class="card-excerpt">{{ article.excerpt }}</p>
+      {% endif %}
+      <div class="card-meta">
+        {% if article.reading_time %}
+          <span>{{ article.reading_time }} min read</span>
+          <span class="meta-dot"></span>
+        {% endif %}
+        <span>{{ article.published_at | format_date }}</span>
+      </div>
+    </article>
+    {% endfor %}
+  </div>
+
+  {% elif not featured %}
+  <!-- Empty state — no articles published yet -->
+  <div class="empty-state" id="guides">
+    <div class="empty-icon">📝</div>
+    <h2>First guide coming soon</h2>
+    <p>Dollar Draft publishes a new personal finance guide every morning. Check back shortly or set up the scheduler to start publishing automatically.</p>
+  </div>
+  {% endif %}
+
+  <!-- All categories promo (if categories exist) -->
+  {% if active_categories | length > 3 %}
+  <div style="background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 36px 40px; margin-bottom: 64px; text-align: center;">
+    <p class="section-eyebrow" style="margin-bottom: 12px;">Explore by topic</p>
+    <h2 style="font-size: 1.375rem; font-weight: 700; margin-bottom: 20px; letter-spacing: -0.3px;">Find guides on every money challenge</h2>
+    <div class="category-pills" style="justify-content: center;">
+      {% for cat in all_categories %}
+        <a href="/category/{{ cat | urlencode }}" class="category-pill">{{ cat }}</a>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Trust signals -->
+  <div style="padding: 48px 0; border-top: 1px solid var(--border); margin-bottom: 16px;">
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 28px; text-align: center;">
+      <div>
+        <div style="font-size: 1.75rem; font-weight: 700; color: var(--blue); margin-bottom: 6px;">Daily</div>
+        <div style="font-size: 0.875rem; color: var(--muted);">New guides published every morning</div>
+      </div>
+      <div>
+        <div style="font-size: 1.75rem; font-weight: 700; color: var(--blue); margin-bottom: 6px;">{{ total_articles }}+</div>
+        <div style="font-size: 0.875rem; color: var(--muted);">Finance guides and growing</div>
+      </div>
+      <div>
+        <div style="font-size: 1.75rem; font-weight: 700; color: var(--blue); margin-bottom: 6px;">10</div>
+        <div style="font-size: 0.875rem; color: var(--muted);">Personal finance categories covered</div>
+      </div>
+      <div>
+        <div style="font-size: 1.75rem; font-weight: 700; color: var(--blue); margin-bottom: 6px;">Free</div>
+        <div style="font-size: 0.875rem; color: var(--muted);">Always free — no signup required</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

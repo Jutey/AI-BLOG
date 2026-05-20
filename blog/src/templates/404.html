@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+
+{% block title %}Page Not Found | {{ site_name }}{% endblock %}
+{% block description %}The page you're looking for doesn't exist. Browse our personal finance guides instead.{% endblock %}
+
+{% block content %}
+<div class="container" style="padding-top: 80px; padding-bottom: 80px;">
+  <div class="empty-state">
+    <div style="font-size: 4rem; margin-bottom: 20px;">📄</div>
+    <h1 style="font-size: 2rem; font-weight: 700; margin-bottom: 12px;">Page not found</h1>
+    <p style="font-size: 1.0625rem; color: var(--muted); max-width: 440px; margin: 0 auto 32px; line-height: 1.7;">
+      This page doesn't exist or may have moved. Explore our personal finance guides below.
+    </p>
+    <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
+      <a href="/" class="btn btn-primary">Browse all guides</a>
+      <a href="/category/Credit%20Repair" class="btn btn-secondary">Credit guides</a>
+    </div>
+  </div>
+
+  <div style="margin-top: 64px; padding-top: 40px; border-top: 1px solid var(--border);">
+    <p class="section-eyebrow" style="margin-bottom: 16px;">Popular topics</p>
+    <div class="category-pills">
+      {% for cat in all_categories %}
+        <a href="/category/{{ cat | urlencode }}" class="category-pill">{{ cat }}</a>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endblock %}

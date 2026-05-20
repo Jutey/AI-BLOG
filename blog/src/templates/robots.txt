@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+
+Sitemap: {{ site_url }}/sitemap.xml
+
+# Dollar Draft — personal finance publishing platform

@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/">
+  <channel>
+    <title>{{ site_name }}</title>
+    <link>{{ site_url }}</link>
+    <description>{{ site_tagline }}</description>
+    <language>en-us</language>
+    <atom:link href="{{ site_url }}/rss.xml" rel="self" type="application/rss+xml"/>
+    <managingEditor>{{ contact_email or ("noreply@" + site_url.replace("https://", "").replace("http://", "")) }}</managingEditor>
+    <lastBuildDate>{% if articles %}{{ articles[0].published_at | format_iso }}{% endif %}</lastBuildDate>
+    <ttl>1440</ttl>
+
+    {% for article in articles %}
+    <item>
+      <title><![CDATA[{{ article.title }}]]></title>
+      <link>{{ site_url }}/article/{{ article.slug }}</link>
+      <guid isPermaLink="true">{{ site_url }}/article/{{ article.slug }}</guid>
+      <pubDate>{{ article.published_at | format_iso }}</pubDate>
+      {% if article.category %}<category>{{ article.category }}</category>{% endif %}
+      <description><![CDATA[{{ article.meta_description or article.excerpt }}]]></description>
+      {% if article.html_content %}
+      <content:encoded><![CDATA[{{ article.html_content | truncate(2000, True, '...') }}]]></content:encoded>
+      {% endif %}
+    </item>
+    {% endfor %}
+
+  </channel>
+</rss>

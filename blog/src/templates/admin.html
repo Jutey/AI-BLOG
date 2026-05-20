@@ -1,0 +1,160 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Dashboard | {{ site_name }}{% endblock %}
+
+{% block content %}
+<div class="admin-page">
+
+  <div class="admin-header">
+    <div>
+      <h1>Admin Dashboard</h1>
+      <p class="text-muted text-sm" style="margin-top: 4px;">Dollar Draft publishing control panel</p>
+    </div>
+    <form action="/admin/run?secret={{ admin_secret }}" method="POST" style="display: inline;">
+      <button type="submit" class="btn btn-danger"
+        onclick="return confirm('Generate a new article now? This uses Claude API credits.')">
+        🤖 Generate Article Now
+      </button>
+    </form>
+  </div>
+
+  {% if message %}
+  <div class="admin-message">✓ {{ message }}</div>
+  {% endif %}
+
+  <!-- Stats -->
+  <div class="admin-stats">
+    <div class="admin-stat-card">
+      <div class="stat-number">{{ article_count }}</div>
+      <div class="stat-label">Articles published</div>
+    </div>
+    <div class="admin-stat-card">
+      <div class="stat-number">{{ runs | length }}</div>
+      <div class="stat-label">Recent runs logged</div>
+    </div>
+    <div class="admin-stat-card">
+      <div class="stat-number" style="font-size: 1.5rem;">
+        {% if scheduler_enabled %}✓{% else %}—{% endif %}
+      </div>
+      <div class="stat-label">
+        Scheduler {{ "enabled" if scheduler_enabled else "disabled" }}
+      </div>
+    </div>
+    <div class="admin-stat-card">
+      <div class="stat-number" style="font-size: 1.5rem; color: var(--green);">Live</div>
+      <div class="stat-label">Site status</div>
+    </div>
+  </div>
+
+  <!-- Recent bot runs -->
+  <div class="admin-section">
+    <h2>Recent Bot Runs</h2>
+    {% if runs %}
+    <div style="overflow-x: auto;">
+      <table class="admin-table">
+        <thead>
+          <tr>
+            <th>Status</th>
+            <th>Keyword</th>
+            <th>Started</th>
+            <th>Finished</th>
+            <th>Error</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for run in runs %}
+          <tr>
+            <td>
+              <span class="run-status-{{ run.status | default('unknown') }}">
+                {% if run.status == 'success' %}✓ Success
+                {% elif run.status == 'error' %}✗ Error
+                {% elif run.status == 'running' %}⟳ Running
+                {% else %}{{ run.status | default('—') }}{% endif %}
+              </span>
+            </td>
+            <td class="truncate" style="max-width: 220px;" title="{{ run.keyword }}">{{ run.keyword or '—' }}</td>
+            <td>{{ run.started_at | format_date if run.started_at else '—' }}</td>
+            <td>{{ run.finished_at | format_date if run.finished_at else '—' }}</td>
+            <td class="truncate" style="max-width: 240px; color: var(--muted);" title="{{ run.error }}">
+              {{ run.error or '—' }}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p class="text-muted text-sm">No runs logged yet. Trigger the first run with the button above.</p>
+    {% endif %}
+  </div>
+
+  <!-- Recent articles -->
+  <div class="admin-section">
+    <h2>Recent Articles</h2>
+    {% if articles %}
+    <div style="overflow-x: auto;">
+      <table class="admin-table">
+        <thead>
+          <tr>
+            <th>Title</th>
+            <th>Category</th>
+            <th>Score</th>
+            <th>Words</th>
+            <th>Published</th>
+            <th>Link</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for article in articles %}
+          <tr>
+            <td style="max-width: 280px;">
+              <span class="truncate" style="display: block; max-width: 280px;" title="{{ article.title }}">
+                {{ article.title }}
+              </span>
+            </td>
+            <td>
+              {% if article.category %}
+                <span class="badge {{ article.category | category_class }}">{{ article.category }}</span>
+              {% else %}—{% endif %}
+            </td>
+            <td>
+              {% if article.quality_score %}
+                <span style="font-weight: 600; color: {% if article.quality_score >= 85 %}var(--green){% elif article.quality_score >= 70 %}#92400E{% else %}#B91C1C{% endif %};">
+                  {{ article.quality_score }}
+                </span>
+              {% else %}—{% endif %}
+            </td>
+            <td>{{ "{:,}".format(article.word_count) if article.word_count else '—' }}</td>
+            <td style="white-space: nowrap;">{{ article.published_at | format_date }}</td>
+            <td>
+              <a href="/article/{{ article.slug }}" target="_blank" rel="noopener"
+                style="font-size: 0.8125rem; color: var(--blue);">View &rarr;</a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p class="text-muted text-sm">No articles yet. Run the bot to generate the first article.</p>
+    {% endif %}
+  </div>
+
+  <!-- Quick links -->
+  <div class="admin-section">
+    <h2>Quick Links</h2>
+    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+      <a href="/" class="btn btn-secondary btn-sm" target="_blank">View Site</a>
+      <a href="/sitemap.xml" class="btn btn-secondary btn-sm" target="_blank">Sitemap</a>
+      <a href="/rss.xml" class="btn btn-secondary btn-sm" target="_blank">RSS Feed</a>
+      <a href="/health" class="btn btn-secondary btn-sm" target="_blank">Health Check</a>
+    </div>
+  </div>
+
+  <p class="text-xs text-muted" style="margin-top: 32px;">
+    Admin URL: <code>/admin?secret=YOUR_ADMIN_SECRET</code> &nbsp;|&nbsp;
+    Manual run: <code>python -c "from src.bot import run_bot; run_bot()"</code>
+  </p>
+
+</div>
+{% endblock %}

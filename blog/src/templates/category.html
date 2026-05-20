@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+
+{% block title %}{{ category }} Guides | {{ site_name }}{% endblock %}
+{% block description %}{{ page_description }}{% endblock %}
+
+{% block extra_head %}
+<meta property="og:title" content="{{ category }} | {{ site_name }}">
+<meta property="og:description" content="{{ page_description }}">
+<meta property="og:type" content="website">
+<meta property="og:url" content="{{ site_url }}/category/{{ category | urlencode }}">
+<link rel="canonical" href="{{ site_url }}/category/{{ category | urlencode }}{% if page > 1 %}?page={{ page }}{% endif %}">
+{% endblock %}
+
+{% block content %}
+
+<!-- ─── CATEGORY HEADER ──────────────────────────────────────────── -->
+<div style="background: var(--bg); border-bottom: 1px solid var(--border); padding: 52px 24px 44px;">
+  <div class="container">
+    <a href="/" style="font-size: 0.875rem; color: var(--muted); text-decoration: none; font-weight: 500; display: inline-flex; align-items: center; gap: 5px; margin-bottom: 20px;">
+      &larr; All guides
+    </a>
+    <div style="display: flex; align-items: center; gap: 14px; margin-bottom: 16px;">
+      <span class="badge {{ category_css }}" style="font-size: 0.8125rem; padding: 6px 14px;">{{ category }}</span>
+    </div>
+    <h1 style="font-size: clamp(1.75rem, 4vw, 2.5rem); font-weight: 700; letter-spacing: -0.75px; margin-bottom: 14px;">
+      {{ category }} Guides
+    </h1>
+    <p style="font-size: 1.0625rem; color: var(--muted); max-width: 560px; line-height: 1.7;">
+      {{ page_description }}
+    </p>
+    {% if total %}
+    <p style="font-size: 0.875rem; color: var(--muted-light); margin-top: 12px;">{{ total }} guide{% if total != 1 %}s{% endif %} available</p>
+    {% endif %}
+  </div>
+</div>
+
+<!-- ─── ARTICLES ─────────────────────────────────────────────────── -->
+<div class="container" style="padding-top: 44px; padding-bottom: 80px;">
+
+  {% if articles %}
+  <div class="article-grid" style="margin-bottom: 48px;">
+    {% for article in articles %}
+    <article class="article-card">
+      <div class="card-badge">
+        <span class="badge {{ article.category | category_class }}">{{ article.category }}</span>
+      </div>
+      <h2 class="card-title">
+        <a href="/article/{{ article.slug }}">{{ article.title }}</a>
+      </h2>
+      {% if article.excerpt %}
+        <p class="card-excerpt">{{ article.excerpt }}</p>
+      {% endif %}
+      <div class="card-meta">
+        {% if article.reading_time %}
+          <span>{{ article.reading_time }} min read</span>
+          <span class="meta-dot"></span>
+        {% endif %}
+        <span>{{ article.published_at | format_date }}</span>
+      </div>
+    </article>
+    {% endfor %}
+  </div>
+
+  <!-- Pagination -->
+  {% if total_pages > 1 %}
+  <nav class="pagination" aria-label="Page navigation">
+    {% if page > 1 %}
+      <a href="/category/{{ category | urlencode }}?page={{ page - 1 }}" class="page-link" aria-label="Previous page">&lsaquo;</a>
+    {% else %}
+      <span class="page-link disabled">&lsaquo;</span>
+    {% endif %}
+
+    {% for p in range(1, total_pages + 1) %}
+      {% if p == page %}
+        <span class="page-link active" aria-current="page">{{ p }}</span>
+      {% elif p == 1 or p == total_pages or (p >= page - 2 and p <= page + 2) %}
+        <a href="/category/{{ category | urlencode }}?page={{ p }}" class="page-link">{{ p }}</a>
+      {% elif p == page - 3 or p == page + 3 %}
+        <span class="page-link disabled">&hellip;</span>
+      {% endif %}
+    {% endfor %}
+
+    {% if page < total_pages %}
+      <a href="/category/{{ category | urlencode }}?page={{ page + 1 }}" class="page-link" aria-label="Next page">&rsaquo;</a>
+    {% else %}
+      <span class="page-link disabled">&rsaquo;</span>
+    {% endif %}
+  </nav>
+  {% endif %}
+
+  {% else %}
+  <div class="empty-state">
+    <div class="empty-icon">📂</div>
+    <h2>No guides yet in {{ category }}</h2>
+    <p>The scheduler will publish the first guide here soon. Check back tomorrow, or browse our other categories.</p>
+    <a href="/" class="btn btn-primary" style="margin-top: 24px;">Browse all guides</a>
+  </div>
+  {% endif %}
+
+  <!-- Browse other categories -->
+  <div style="margin-top: 60px; padding-top: 40px; border-top: 1px solid var(--border);">
+    <p class="section-eyebrow">Browse more topics</p>
+    <div class="category-pills" style="margin-top: 16px;">
+      {% for cat in all_categories %}
+        {% if cat != category %}
+          <a href="/category/{{ cat | urlencode }}" class="category-pill">{{ cat }}</a>
+        {% endif %}
+      {% endfor %}
+    </div>
+  </div>
+
+</div>
+{% endblock %}
