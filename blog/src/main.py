@@ -17,6 +17,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 
 from . import database as db
 from .routes import router, templates
+from .admin_panel import manage_router
 from .branding import LOGO_SVG, FAVICON_SVG, ALL_CATEGORIES
 from .analytics import get_ga_script
 from .seo import get_site_url
@@ -37,6 +38,7 @@ app = FastAPI(
 )
 
 app.include_router(router)
+app.include_router(manage_router)
 
 _scheduler: BackgroundScheduler | None = None
 

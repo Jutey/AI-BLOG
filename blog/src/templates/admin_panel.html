@@ -1,0 +1,1144 @@
+{% extends "base.html" %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block extra_head %}
+<style>
+  /* ── Management Panel additions ───────────────────────────── */
+  .manage-wrap {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 36px 24px 80px;
+  }
+
+  /* Page header */
+  .manage-page-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 20px;
+    margin-bottom: 32px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid var(--border);
+    flex-wrap: wrap;
+  }
+  .manage-page-header h1 {
+    font-size: 1.625rem;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    margin-bottom: 4px;
+  }
+  .manage-breadcrumb {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    font-size: 0.8125rem;
+  }
+  .manage-breadcrumb a {
+    color: var(--muted);
+    text-decoration: none;
+    font-weight: 500;
+  }
+  .manage-breadcrumb a:hover { color: var(--blue); }
+  .breadcrumb-sep { color: var(--border-dark); }
+  .manage-header-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+
+  /* Flash message */
+  .flash-msg {
+    background: #D1FAE5;
+    border: 1px solid #6EE7B7;
+    color: #065F46;
+    border-radius: var(--radius-sm);
+    padding: 13px 18px;
+    margin-bottom: 24px;
+    font-size: 0.9375rem;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .flash-close {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #065F46;
+    font-size: 1.1rem;
+    padding: 0;
+    line-height: 1;
+    opacity: 0.7;
+  }
+  .flash-close:hover { opacity: 1; }
+
+  /* Stats overview */
+  .manage-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 14px;
+    margin-bottom: 32px;
+  }
+  .mstat {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px 18px;
+  }
+  .mstat-num {
+    font-size: 2rem;
+    font-weight: 700;
+    line-height: 1;
+    color: var(--text);
+  }
+  .mstat-num.blue  { color: var(--blue); }
+  .mstat-num.green { color: var(--green); }
+  .mstat-num.orange { color: #D97706; }
+  .mstat-label {
+    font-size: 0.8125rem;
+    color: var(--muted);
+    margin-top: 6px;
+    font-weight: 500;
+  }
+
+  /* Scheduler bar */
+  .scheduler-bar {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 22px;
+    margin-bottom: 28px;
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    flex-wrap: wrap;
+    font-size: 0.875rem;
+  }
+  .sched-indicator {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 600;
+  }
+  .sched-dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .sched-dot.on  { background: var(--green); box-shadow: 0 0 0 3px rgba(22,163,74,0.18); }
+  .sched-dot.off { background: #9CA3AF; }
+  .sched-item { color: var(--muted); }
+  .sched-item strong { color: var(--text); }
+  .refresh-indicator {
+    margin-left: auto;
+    font-size: 0.8125rem;
+    color: var(--muted-light);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  /* Generate grid */
+  .generate-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-bottom: 36px;
+  }
+  .gen-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 26px 28px;
+  }
+  .gen-card h3 {
+    font-size: 1rem;
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
+  .gen-card p {
+    font-size: 0.875rem;
+    color: var(--muted);
+    margin-bottom: 18px;
+    line-height: 1.55;
+  }
+  .gen-form { display: flex; flex-direction: column; gap: 12px; }
+  .form-row { display: flex; gap: 10px; }
+  .form-row .form-group { flex: 1; }
+  .form-group { display: flex; flex-direction: column; gap: 5px; }
+  .form-label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .form-input, .form-select {
+    padding: 9px 12px;
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-size: 0.9375rem;
+    font-family: var(--font);
+    color: var(--text);
+    background: var(--bg);
+    transition: border-color var(--transition);
+    width: 100%;
+  }
+  .form-input:focus, .form-select:focus {
+    outline: none;
+    border-color: var(--blue);
+    background: #fff;
+  }
+  .form-input::placeholder { color: var(--muted-light); }
+  .form-hint {
+    font-size: 0.8125rem;
+    color: var(--muted-light);
+  }
+
+  /* Status badges */
+  .sbadge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 10px;
+    border-radius: 5px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+  .sbadge::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+    flex-shrink: 0;
+  }
+  .sbadge-draft      { background: #F3F4F6; color: #374151; }
+  .sbadge-generating { background: #FEF3C7; color: #92400E; }
+  .sbadge-scheduled  { background: #EFF6FF; color: #1D4ED8; }
+  .sbadge-published  { background: #F0FDF4; color: #15803D; }
+  .sbadge-failed     { background: #FFF1F2; color: #9F1239; }
+
+  /* Filter tabs */
+  .articles-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 18px;
+    flex-wrap: wrap;
+  }
+  .filter-tabs {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+  }
+  .ftab {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 14px;
+    border-radius: var(--radius-sm);
+    border: 1.5px solid var(--border);
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--muted);
+    text-decoration: none;
+    transition: all var(--transition);
+    cursor: pointer;
+    background: var(--card);
+  }
+  .ftab:hover { border-color: var(--blue); color: var(--blue); text-decoration: none; }
+  .ftab.active { background: var(--blue); color: #fff; border-color: var(--blue); }
+  .ftab .count {
+    background: rgba(255,255,255,0.25);
+    border-radius: 10px;
+    padding: 1px 6px;
+    font-size: 0.7rem;
+    font-weight: 700;
+  }
+  .ftab:not(.active) .count {
+    background: #F3F4F6;
+    color: var(--muted);
+  }
+
+  /* Search */
+  .search-wrap {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  .search-input-wrap {
+    position: relative;
+  }
+  .search-icon {
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--muted-light);
+    font-size: 0.9rem;
+    pointer-events: none;
+  }
+  .search-input {
+    padding-left: 32px;
+    width: 220px;
+  }
+
+  /* Articles section */
+  .articles-section {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    margin-bottom: 32px;
+  }
+  .articles-section-header {
+    padding: 18px 22px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: #F9FAFB;
+  }
+  .articles-section-header h2 {
+    font-size: 0.9375rem;
+    font-weight: 600;
+  }
+  .article-count-label {
+    font-size: 0.8125rem;
+    color: var(--muted);
+  }
+
+  /* Management table */
+  .manage-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+  }
+  .manage-table th {
+    padding: 11px 16px;
+    text-align: left;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--muted);
+    border-bottom: 1px solid var(--border);
+    background: #F9FAFB;
+    white-space: nowrap;
+    cursor: pointer;
+    user-select: none;
+  }
+  .manage-table th:hover { color: var(--blue); }
+  .manage-table th .sort-arrow { opacity: 0.4; margin-left: 4px; }
+  .manage-table th.sorted .sort-arrow { opacity: 1; color: var(--blue); }
+  .manage-table td {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: middle;
+    color: var(--text);
+  }
+  .manage-table tr:last-child td { border-bottom: none; }
+  .manage-table tr.data-row:hover td { background: #FAFAFA; }
+
+  .td-title {
+    max-width: 240px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: 500;
+  }
+  .td-title.no-content { color: var(--muted); font-style: italic; }
+  .td-keyword {
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--muted);
+    font-size: 0.8125rem;
+  }
+  .td-score {
+    font-weight: 600;
+    font-size: 0.875rem;
+    text-align: center;
+  }
+  .score-high   { color: var(--green); }
+  .score-mid    { color: #D97706; }
+  .score-low    { color: #B91C1C; }
+  .score-none   { color: var(--muted-light); }
+  .td-date      { color: var(--muted); font-size: 0.8125rem; white-space: nowrap; }
+  .td-actions   { white-space: nowrap; }
+
+  /* Action buttons */
+  .act-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 5px 10px;
+    border-radius: 5px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    border: 1.5px solid transparent;
+    transition: all var(--transition);
+    text-decoration: none;
+    background: none;
+  }
+  .act-btn-edit {
+    color: var(--muted);
+    border-color: var(--border);
+    background: var(--card);
+  }
+  .act-btn-edit:hover { color: var(--text); border-color: var(--border-dark); }
+  .act-btn-edit.open  { color: var(--blue); border-color: var(--blue); background: var(--blue-light); }
+  .act-btn-publish {
+    color: var(--green);
+    border-color: #BBF7D0;
+    background: #F0FDF4;
+  }
+  .act-btn-publish:hover { background: #DCFCE7; border-color: #86EFAC; }
+  .act-btn-publish:disabled { opacity: 0.4; cursor: not-allowed; }
+  .act-btn-schedule {
+    color: var(--blue);
+    border-color: #BFDBFE;
+    background: #EFF6FF;
+  }
+  .act-btn-schedule:hover { background: #DBEAFE; }
+  .act-btn-delete {
+    color: #B91C1C;
+    border-color: #FECACA;
+    background: #FFF1F2;
+  }
+  .act-btn-delete:hover { background: #FEE2E2; }
+
+  /* Inline edit row */
+  .edit-row { display: none; background: #FAFAFA; }
+  .edit-row td {
+    padding: 20px 22px;
+    border-bottom: 1px solid var(--border);
+  }
+  .edit-form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 14px;
+    margin-bottom: 16px;
+  }
+  .edit-form-footer {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+    flex-wrap: wrap;
+  }
+  .edit-form-full { grid-column: 1 / -1; }
+
+  /* Schedule modal */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal-box {
+    background: var(--card);
+    border-radius: var(--radius-lg);
+    padding: 32px;
+    max-width: 440px;
+    width: 100%;
+    box-shadow: var(--shadow-lg);
+  }
+  .modal-box h3 {
+    font-size: 1.125rem;
+    font-weight: 700;
+    margin-bottom: 10px;
+  }
+  .modal-box p {
+    font-size: 0.9375rem;
+    color: var(--muted);
+    margin-bottom: 22px;
+    line-height: 1.6;
+  }
+  .modal-article-title {
+    font-weight: 600;
+    color: var(--text);
+    font-style: normal;
+  }
+  .modal-footer {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    margin-top: 24px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+  }
+
+  /* Pagination (reuse existing + override as needed) */
+  .manage-pagination { margin-top: 0; padding: 16px 20px; border-top: 1px solid var(--border); }
+
+  /* Run history */
+  .runs-section {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+  .runs-section-header {
+    padding: 16px 22px;
+    border-bottom: 1px solid var(--border);
+    background: #F9FAFB;
+    font-size: 0.9375rem;
+    font-weight: 600;
+  }
+  .run-status-success { color: #15803D; font-weight: 600; }
+  .run-status-error   { color: #B91C1C; font-weight: 600; }
+  .run-status-running { color: #D97706; font-weight: 600; }
+
+  /* Empty state inside table */
+  .table-empty {
+    padding: 48px 24px;
+    text-align: center;
+    color: var(--muted);
+  }
+  .table-empty p { font-size: 0.9375rem; }
+
+  /* Responsive */
+  @media (max-width: 900px) {
+    .generate-grid { grid-template-columns: 1fr; }
+    .edit-form-grid { grid-template-columns: 1fr 1fr; }
+    .search-input { width: 160px; }
+    .articles-toolbar { flex-direction: column; align-items: flex-start; }
+  }
+  @media (max-width: 640px) {
+    .manage-stats { grid-template-columns: 1fr 1fr 1fr; }
+    .scheduler-bar { flex-direction: column; align-items: flex-start; gap: 10px; }
+    .edit-form-grid { grid-template-columns: 1fr; }
+    .manage-table { font-size: 0.8125rem; }
+    .manage-table th, .manage-table td { padding: 10px 12px; }
+    .td-title { max-width: 160px; }
+    .td-keyword { max-width: 120px; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="manage-wrap">
+
+  <!-- PAGE HEADER ─────────────────────────────────────────────── -->
+  <div class="manage-page-header">
+    <div>
+      <h1>Management Panel</h1>
+      <div class="manage-breadcrumb">
+        <a href="/">← Site</a>
+        <span class="breadcrumb-sep">/</span>
+        <a href="/admin?secret={{ secret }}">Admin</a>
+        <span class="breadcrumb-sep">/</span>
+        <span style="color: var(--text); font-weight: 600;">Manage</span>
+      </div>
+    </div>
+    <div class="manage-header-actions">
+      <a href="/manage?secret={{ secret }}" class="btn btn-secondary btn-sm">↻ Refresh</a>
+      <a href="/admin?secret={{ secret }}" class="btn btn-secondary btn-sm">← Admin</a>
+    </div>
+  </div>
+
+  <!-- FLASH MESSAGE ────────────────────────────────────────────── -->
+  {% if message %}
+  <div class="flash-msg" id="flash-message">
+    <span>{{ message }}</span>
+    <button class="flash-close" onclick="dismissFlash()" aria-label="Dismiss">✕</button>
+  </div>
+  {% endif %}
+
+  <!-- SCHEDULER BAR ───────────────────────────────────────────── -->
+  <div class="scheduler-bar">
+    <div class="sched-indicator">
+      <span class="sched-dot {{ 'on' if scheduler_enabled else 'off' }}"></span>
+      Scheduler {{ 'ENABLED' if scheduler_enabled else 'DISABLED' }}
+    </div>
+    <div class="sched-item">
+      Next run: <strong>{{ next_run_str }}</strong>
+    </div>
+    <div class="sched-item">
+      Published articles: <strong>{{ article_count }}</strong>
+    </div>
+    <div class="sched-item">
+      Drafts in queue: <strong>{{ counts.draft + counts.generating }}</strong>
+    </div>
+    <div class="refresh-indicator">
+      ↻ Auto-refresh in <span id="refresh-countdown">30</span>s
+    </div>
+  </div>
+
+  <!-- STATS OVERVIEW ──────────────────────────────────────────── -->
+  <div class="manage-stats">
+    <div class="mstat">
+      <div class="mstat-num">{{ counts.total }}</div>
+      <div class="mstat-label">Total in queue</div>
+    </div>
+    <div class="mstat">
+      <div class="mstat-num orange">{{ counts.draft + counts.generating }}</div>
+      <div class="mstat-label">Drafts</div>
+    </div>
+    <div class="mstat">
+      <div class="mstat-num blue">{{ counts.scheduled }}</div>
+      <div class="mstat-label">Scheduled</div>
+    </div>
+    <div class="mstat">
+      <div class="mstat-num green">{{ counts.published }}</div>
+      <div class="mstat-label">Published</div>
+    </div>
+    <div class="mstat">
+      <div class="mstat-num" style="color: #B91C1C;">{{ counts.failed }}</div>
+      <div class="mstat-label">Failed</div>
+    </div>
+    <div class="mstat">
+      <div class="mstat-num blue">{{ article_count }}</div>
+      <div class="mstat-label">Live on site</div>
+    </div>
+  </div>
+
+  <!-- GENERATE FORMS ──────────────────────────────────────────── -->
+  <div class="generate-grid">
+
+    <!-- Single article -->
+    <div class="gen-card">
+      <h3>✍️ Generate Draft</h3>
+      <p>Enter a keyword and category. Claude will write a full article and save it as a draft for your review.</p>
+      <form class="gen-form" action="/manage/generate?secret={{ secret }}" method="POST">
+        <div class="form-row">
+          <div class="form-group" style="flex: 2;">
+            <label class="form-label" for="gen-keyword">Keyword</label>
+            <input
+              id="gen-keyword" name="keyword" type="text"
+              class="form-input"
+              placeholder="e.g. how to remove collections"
+              required
+            >
+          </div>
+          <div class="form-group" style="flex: 1;">
+            <label class="form-label" for="gen-category">Category</label>
+            <select id="gen-category" name="category" class="form-select" required>
+              {% for cat in all_categories %}
+                <option value="{{ cat }}">{{ cat }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+        <button type="submit" class="btn btn-primary">Generate Draft</button>
+        <p class="form-hint">Takes 2–4 minutes. Page auto-refreshes every 30s.</p>
+      </form>
+    </div>
+
+    <!-- Bulk generation -->
+    <div class="gen-card">
+      <h3>⚡ Bulk Generate</h3>
+      <p>Generate multiple drafts for a category at once, using unused keywords from the topic pool. Runs in the background.</p>
+      <form class="gen-form" action="/manage/generate-bulk?secret={{ secret }}" method="POST">
+        <div class="form-row">
+          <div class="form-group" style="flex: 2;">
+            <label class="form-label" for="bulk-category">Category</label>
+            <select id="bulk-category" name="category" class="form-select" required>
+              {% for cat in all_categories %}
+                <option value="{{ cat }}">{{ cat }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="form-group" style="flex: 1;">
+            <label class="form-label" for="bulk-count">Count</label>
+            <input
+              id="bulk-count" name="count" type="number"
+              class="form-input" min="1" max="20" value="5" required
+            >
+          </div>
+        </div>
+        <button type="submit" class="btn btn-primary"
+          onclick="return confirm('Generate multiple articles? This uses Claude API credits and may take several minutes.')">
+          Bulk Generate
+        </button>
+        <p class="form-hint">Max 20 per request. Skips already-published keywords.</p>
+      </form>
+    </div>
+
+  </div>
+
+  <!-- ARTICLES TABLE ──────────────────────────────────────────── -->
+  <div class="articles-section" style="margin-bottom: 32px;">
+    <div class="articles-section-header">
+      <h2>Scheduled Articles</h2>
+      <span class="article-count-label">{{ total }} article{{ 's' if total != 1 else '' }}</span>
+    </div>
+
+    <!-- Toolbar: filter tabs + search -->
+    <div style="padding: 14px 18px; border-bottom: 1px solid var(--border); background: var(--bg);">
+      <div class="articles-toolbar">
+        <div class="filter-tabs">
+          {% set base_url = "/manage?secret=" + secret + "&sort=" + sort + "&order=" + order %}
+          {% if q %} {% set base_url = base_url + "&q=" + q %} {% endif %}
+
+          <a href="{{ base_url }}" class="ftab {{ 'active' if not status_filter }}">
+            All <span class="count">{{ counts.total }}</span>
+          </a>
+          <a href="{{ base_url }}&status=draft" class="ftab {{ 'active' if status_filter == 'draft' }}">
+            Drafts <span class="count">{{ counts.draft }}</span>
+          </a>
+          {% if counts.generating %}
+          <a href="{{ base_url }}&status=generating" class="ftab {{ 'active' if status_filter == 'generating' }}">
+            Generating <span class="count">{{ counts.generating }}</span>
+          </a>
+          {% endif %}
+          <a href="{{ base_url }}&status=scheduled" class="ftab {{ 'active' if status_filter == 'scheduled' }}">
+            Scheduled <span class="count">{{ counts.scheduled }}</span>
+          </a>
+          <a href="{{ base_url }}&status=published" class="ftab {{ 'active' if status_filter == 'published' }}">
+            Published <span class="count">{{ counts.published }}</span>
+          </a>
+          {% if counts.failed %}
+          <a href="{{ base_url }}&status=failed" class="ftab {{ 'active' if status_filter == 'failed' }}">
+            Failed <span class="count">{{ counts.failed }}</span>
+          </a>
+          {% endif %}
+        </div>
+
+        <form class="search-wrap" method="GET" action="/manage" id="search-form">
+          <input type="hidden" name="secret" value="{{ secret }}">
+          <input type="hidden" name="status" value="{{ status_filter }}">
+          <input type="hidden" name="sort" value="{{ sort }}">
+          <input type="hidden" name="order" value="{{ order }}">
+          <div class="search-input-wrap">
+            <span class="search-icon">🔍</span>
+            <input
+              id="search-input"
+              name="q"
+              type="text"
+              class="form-input search-input"
+              placeholder="Search articles…"
+              value="{{ search_query }}"
+            >
+          </div>
+          <button type="submit" class="btn btn-secondary btn-sm">Search</button>
+          {% if search_query %}
+          <a href="/manage?secret={{ secret }}&status={{ status_filter }}" class="btn btn-secondary btn-sm">Clear</a>
+          {% endif %}
+        </form>
+      </div>
+    </div>
+
+    <!-- Table -->
+    <div style="overflow-x: auto;">
+      <table class="manage-table">
+        <thead>
+          <tr>
+            {% macro sort_header(label, col) %}
+              {% set new_order = 'asc' if (sort == col and order == 'desc') else 'desc' %}
+              <th class="{{ 'sorted' if sort == col else '' }}"
+                  onclick="window.location='/manage?secret={{ secret }}&status={{ status_filter }}&q={{ search_query }}&sort={{ col }}&order={{ new_order }}&page={{ page }}'">
+                {{ label }}
+                <span class="sort-arrow">{{ '↑' if (sort == col and order == 'asc') else '↓' }}</span>
+              </th>
+            {% endmacro %}
+            {{ sort_header('Title', 'title') }}
+            {{ sort_header('Keyword', 'keyword') }}
+            {{ sort_header('Category', 'category') }}
+            {{ sort_header('Status', 'status') }}
+            {{ sort_header('Score', 'quality_score') }}
+            {{ sort_header('Scheduled', 'scheduled_for') }}
+            {{ sort_header('Created', 'created_at') }}
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% if articles %}
+            {% for a in articles %}
+            <!-- DATA ROW -->
+            <tr class="data-row">
+              <td class="td-title {{ 'no-content' if not a.has_content }}"
+                  title="{{ a.title or a.keyword }}">
+                {{ a.title or a.keyword }}
+                {% if not a.has_content %}<span style="font-size:0.75rem; margin-left:4px;">⟳</span>{% endif %}
+              </td>
+              <td class="td-keyword" title="{{ a.keyword }}">{{ a.keyword }}</td>
+              <td>
+                {% if a.category %}
+                  <span class="badge {{ a.category | category_class }}">{{ a.category }}</span>
+                {% else %}
+                  <span style="color: var(--muted-light);">—</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if not a.has_content and a.status in ('draft', 'generating') %}
+                  <span class="sbadge sbadge-generating">⟳ Generating</span>
+                {% elif a.status == 'draft' %}
+                  <span class="sbadge sbadge-draft">Draft</span>
+                {% elif a.status == 'generating' %}
+                  <span class="sbadge sbadge-generating">⟳ Generating</span>
+                {% elif a.status == 'scheduled' %}
+                  <span class="sbadge sbadge-scheduled">Scheduled</span>
+                {% elif a.status == 'published' %}
+                  <span class="sbadge sbadge-published">Published</span>
+                  {% if a.published_article_id %}
+                    <a href="/article/{{ a.keyword | replace(' ', '-') | lower }}"
+                       style="font-size:0.75rem; color: var(--blue); margin-left: 4px;">↗</a>
+                  {% endif %}
+                {% elif a.status == 'failed' %}
+                  <span class="sbadge sbadge-failed">Failed</span>
+                {% endif %}
+              </td>
+              <td class="td-score">
+                {% if a.quality_score %}
+                  <span class="{{ 'score-high' if a.quality_score >= 85 else ('score-mid' if a.quality_score >= 70 else 'score-low') }}">
+                    {{ a.quality_score }}
+                  </span>
+                {% else %}
+                  <span class="score-none">—</span>
+                {% endif %}
+              </td>
+              <td class="td-date">
+                {{ a.scheduled_for | format_date if a.scheduled_for else '—' }}
+              </td>
+              <td class="td-date">{{ a.created_at | format_date }}</td>
+              <td class="td-actions">
+                <!-- Edit toggle -->
+                <button
+                  id="edit-btn-{{ a.id }}"
+                  class="act-btn act-btn-edit"
+                  onclick="toggleEdit({{ a.id }})"
+                  type="button">
+                  ✏ Edit
+                </button>
+
+                <!-- Publish Now (only if has content and not yet published) -->
+                {% if a.has_content and a.status not in ('published',) %}
+                <form action="/manage/publish/{{ a.id }}?secret={{ secret }}" method="POST" style="display:inline;"
+                      onsubmit="return confirm('Publish this article to the live site now?')">
+                  <button type="submit" class="act-btn act-btn-publish">▶ Publish</button>
+                </form>
+                {% endif %}
+
+                <!-- Schedule -->
+                {% if a.has_content and a.status == 'draft' %}
+                <button
+                  class="act-btn act-btn-schedule"
+                  onclick="openScheduleModal({{ a.id }}, '{{ a.scheduled_for | fmt_local if a.scheduled_for else '' }}')"
+                  type="button">
+                  🕐 Schedule
+                </button>
+                {% elif a.status == 'scheduled' %}
+                <form action="/manage/schedule/{{ a.id }}?secret={{ secret }}" method="POST" style="display:inline;">
+                  <input type="hidden" name="action" value="unschedule">
+                  <input type="hidden" name="scheduled_for" value="">
+                  <button type="submit" class="act-btn act-btn-schedule">✕ Unschedule</button>
+                </form>
+                {% endif %}
+
+                <!-- Delete -->
+                {% if a.status != 'published' %}
+                <button
+                  class="act-btn act-btn-delete"
+                  onclick="openDeleteModal({{ a.id }}, '{{ (a.title or a.keyword) | replace("'", "\\'") }}')"
+                  type="button">
+                  🗑 Delete
+                </button>
+                {% endif %}
+              </td>
+            </tr>
+
+            <!-- INLINE EDIT ROW -->
+            <tr class="edit-row" id="edit-{{ a.id }}">
+              <td colspan="8">
+                <form action="/manage/update/{{ a.id }}?secret={{ secret }}" method="POST">
+                  <div class="edit-form-grid">
+                    <div class="form-group">
+                      <label class="form-label">Title</label>
+                      <input name="title" type="text" class="form-input"
+                             value="{{ a.title or '' }}" placeholder="Article title">
+                    </div>
+                    <div class="form-group">
+                      <label class="form-label">Keyword</label>
+                      <input name="keyword" type="text" class="form-input"
+                             value="{{ a.keyword }}" required>
+                    </div>
+                    <div class="form-group">
+                      <label class="form-label">Category</label>
+                      <select name="category" class="form-select">
+                        {% for cat in all_categories %}
+                        <option value="{{ cat }}" {{ 'selected' if a.category == cat }}>{{ cat }}</option>
+                        {% endfor %}
+                      </select>
+                    </div>
+                    <div class="form-group edit-form-full">
+                      <label class="form-label">Meta Description</label>
+                      <input name="meta_description" type="text" class="form-input"
+                             placeholder="SEO meta description (150-160 chars)">
+                    </div>
+                  </div>
+                  <div class="edit-form-footer">
+                    <button type="submit" class="btn btn-primary btn-sm">Save changes</button>
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="toggleEdit({{ a.id }})">Cancel</button>
+                    {% if a.has_content and a.status not in ('published',) %}
+                    <form action="/manage/publish/{{ a.id }}?secret={{ secret }}" method="POST" style="display:inline;"
+                          onsubmit="return confirm('Publish this article to the live site?')">
+                      <button type="submit" class="btn btn-secondary btn-sm" style="color: var(--green); border-color: #BBF7D0;">
+                        ▶ Publish Now
+                      </button>
+                    </form>
+                    {% endif %}
+                  </div>
+                </form>
+              </td>
+            </tr>
+            {% endfor %}
+
+          {% else %}
+          <tr>
+            <td colspan="8">
+              <div class="table-empty">
+                <div style="font-size: 2rem; margin-bottom: 12px;">📝</div>
+                <p>
+                  {% if status_filter %}
+                    No {{ status_filter }} articles found.
+                    <a href="/manage?secret={{ secret }}" style="color: var(--blue);">View all</a>
+                  {% elif search_query %}
+                    No articles matching "{{ search_query }}".
+                    <a href="/manage?secret={{ secret }}" style="color: var(--blue);">Clear search</a>
+                  {% else %}
+                    No scheduled articles yet. Use the Generate Draft form above to create your first one.
+                  {% endif %}
+                </p>
+              </div>
+            </td>
+          </tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Pagination -->
+    {% if total_pages > 1 %}
+    <div class="manage-pagination">
+      <nav class="pagination" style="margin-top: 0;" aria-label="Articles pagination">
+        {% set pbase = "/manage?secret=" + secret + "&status=" + status_filter + "&q=" + search_query + "&sort=" + sort + "&order=" + order %}
+        {% if page > 1 %}
+          <a href="{{ pbase }}&page={{ page - 1 }}" class="page-link">&lsaquo;</a>
+        {% else %}
+          <span class="page-link disabled">&lsaquo;</span>
+        {% endif %}
+        {% for p in range(1, total_pages + 1) %}
+          {% if p == page %}
+            <span class="page-link active">{{ p }}</span>
+          {% elif p == 1 or p == total_pages or (p >= page - 2 and p <= page + 2) %}
+            <a href="{{ pbase }}&page={{ p }}" class="page-link">{{ p }}</a>
+          {% elif p == page - 3 or p == page + 3 %}
+            <span class="page-link disabled">&hellip;</span>
+          {% endif %}
+        {% endfor %}
+        {% if page < total_pages %}
+          <a href="{{ pbase }}&page={{ page + 1 }}" class="page-link">&rsaquo;</a>
+        {% else %}
+          <span class="page-link disabled">&rsaquo;</span>
+        {% endif %}
+      </nav>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- RUN HISTORY ─────────────────────────────────────────────── -->
+  <div class="runs-section">
+    <div class="runs-section-header">Run History (last 10)</div>
+    <div style="overflow-x: auto;">
+      <table class="manage-table">
+        <thead>
+          <tr>
+            <th>Status</th>
+            <th>Keyword</th>
+            <th>Started</th>
+            <th>Finished</th>
+            <th>Error</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% if runs %}
+            {% for run in runs %}
+            <tr>
+              <td>
+                <span class="run-status-{{ run.status | default('unknown') }}">
+                  {% if run.status == 'success' %}✓ Success
+                  {% elif run.status == 'error' %}✗ Error
+                  {% elif run.status == 'running' %}⟳ Running
+                  {% else %}{{ run.status | default('—') }}{% endif %}
+                </span>
+              </td>
+              <td style="max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted);">
+                {{ run.keyword or '—' }}
+              </td>
+              <td class="td-date">{{ run.started_at | format_date if run.started_at else '—' }}</td>
+              <td class="td-date">{{ run.finished_at | format_date if run.finished_at else '—' }}</td>
+              <td style="max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #B91C1C; font-size: 0.8125rem;"
+                  title="{{ run.error }}">
+                {{ run.error or '—' }}
+              </td>
+            </tr>
+            {% endfor %}
+          {% else %}
+          <tr>
+            <td colspan="5">
+              <div class="table-empty"><p>No runs logged yet.</p></div>
+            </td>
+          </tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<!-- ── DELETE MODAL ──────────────────────────────────────────────────────── -->
+<div class="modal-overlay" id="delete-modal" onclick="closeModal('delete-modal')">
+  <div class="modal-box" onclick="event.stopPropagation()">
+    <h3>🗑 Delete Article?</h3>
+    <p>
+      Are you sure you want to permanently delete
+      <em id="delete-modal-title" class="modal-article-title"></em>?
+      This cannot be undone.
+    </p>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('delete-modal')">Cancel</button>
+      <form id="delete-modal-form" method="POST" style="display:inline;">
+        <button type="submit" class="btn btn-danger">Delete permanently</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- ── SCHEDULE MODAL ────────────────────────────────────────────────────── -->
+<div class="modal-overlay" id="schedule-modal" onclick="closeModal('schedule-modal')">
+  <div class="modal-box" onclick="event.stopPropagation()">
+    <h3>🕐 Schedule Article</h3>
+    <p>
+      Choose a date and time (UTC) to publish this article automatically.
+      The scheduler will publish it at the next bot run on or after this time.
+    </p>
+    <form id="schedule-modal-form" method="POST">
+      <div class="form-group" style="margin-bottom: 16px;">
+        <label class="form-label">Publish date &amp; time (UTC)</label>
+        <input id="schedule-for-input" name="scheduled_for" type="datetime-local" class="form-input" required>
+        <input type="hidden" name="action" value="schedule">
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('schedule-modal')">Cancel</button>
+        <button type="submit" class="btn btn-primary">Schedule</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+  /* ── Delete modal ───────────────────────────────────────── */
+  function openDeleteModal(id, title) {
+    document.getElementById('delete-modal-title').textContent = title;
+    document.getElementById('delete-modal-form').action =
+      '/manage/delete/' + id + '?secret={{ secret }}';
+    document.getElementById('delete-modal').classList.add('open');
+  }
+
+  /* ── Schedule modal ─────────────────────────────────────── */
+  function openScheduleModal(id, currentVal) {
+    document.getElementById('schedule-modal-form').action =
+      '/manage/schedule/' + id + '?secret={{ secret }}';
+    if (currentVal) {
+      document.getElementById('schedule-for-input').value = currentVal;
+    } else {
+      // Default to tomorrow at PUBLISH_HOUR_UTC
+      const d = new Date();
+      d.setUTCDate(d.getUTCDate() + 1);
+      d.setUTCHours({{ publish_hour }}, 0, 0, 0);
+      const iso = d.toISOString().slice(0, 16);
+      document.getElementById('schedule-for-input').value = iso;
+    }
+    document.getElementById('schedule-modal').classList.add('open');
+  }
+
+  /* ── Close any modal ────────────────────────────────────── */
+  function closeModal(id) {
+    document.getElementById(id).classList.remove('open');
+  }
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+      document.querySelectorAll('.modal-overlay.open').forEach(m => m.classList.remove('open'));
+    }
+  });
+
+  /* ── Inline edit toggle ─────────────────────────────────── */
+  function toggleEdit(id) {
+    const row = document.getElementById('edit-' + id);
+    const btn = document.getElementById('edit-btn-' + id);
+    const isOpen = row.style.display === 'table-row';
+
+    // Close all open edit rows first
+    document.querySelectorAll('.edit-row').forEach(r => r.style.display = 'none');
+    document.querySelectorAll('[id^="edit-btn-"]').forEach(b => {
+      b.textContent = '✏ Edit';
+      b.classList.remove('open');
+    });
+
+    if (!isOpen) {
+      row.style.display = 'table-row';
+      btn.textContent = '✕ Close';
+      btn.classList.add('open');
+      row.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }
+
+  /* ── Flash message dismiss ──────────────────────────────── */
+  function dismissFlash() {
+    const el = document.getElementById('flash-message');
+    if (el) el.style.display = 'none';
+  }
+  // Auto-dismiss after 8 seconds
+  setTimeout(dismissFlash, 8000);
+
+  /* ── Search debounce ────────────────────────────────────── */
+  let searchTimer;
+  const searchInput = document.getElementById('search-input');
+  if (searchInput) {
+    searchInput.addEventListener('input', function(e) {
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(function() {
+        document.getElementById('search-form').submit();
+      }, 450);
+    });
+  }
+
+  /* ── Auto-refresh countdown ─────────────────────────────── */
+  let countdown = 30;
+  const countdownEl = document.getElementById('refresh-countdown');
+  function tick() {
+    countdown--;
+    if (countdownEl) countdownEl.textContent = countdown;
+    if (countdown <= 0) {
+      location.reload();
+      return;
+    }
+    setTimeout(tick, 1000);
+  }
+  // Only start countdown if no edit rows are open and no modals
+  setTimeout(tick, 1000);
+
+  /* ── Sort col highlighting ──────────────────────────────── */
+  document.querySelectorAll('.manage-table th[onclick]').forEach(th => {
+    th.style.cursor = 'pointer';
+  });
+</script>
+{% endblock %}

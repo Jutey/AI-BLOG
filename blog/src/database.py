@@ -91,6 +91,27 @@ def init_db():
         cur.execute("CREATE INDEX IF NOT EXISTS idx_articles_category     ON articles(category)")
         cur.execute("CREATE INDEX IF NOT EXISTS idx_articles_status       ON articles(status)")
 
+        # ── Scheduled articles (management panel) ────────────────────────────
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS scheduled_articles (
+                id                   SERIAL PRIMARY KEY,
+                title                TEXT,
+                keyword              TEXT NOT NULL,
+                category             TEXT,
+                status               TEXT DEFAULT 'draft',
+                scheduled_for        TIMESTAMP,
+                created_at           TIMESTAMP DEFAULT NOW(),
+                updated_at           TIMESTAMP DEFAULT NOW(),
+                article_data_json    TEXT,
+                generated_html       TEXT,
+                quality_score        INTEGER,
+                published_article_id INTEGER
+            )
+        """)
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_sched_status        ON scheduled_articles(status)")
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_sched_scheduled_for ON scheduled_articles(scheduled_for)")
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_sched_created_at    ON scheduled_articles(created_at DESC)")
+
         logger.info("Database initialized")
 
 
@@ -246,3 +267,177 @@ def get_recent_runs(limit: int = 10) -> list[dict]:
     return _fetchall(
         "SELECT * FROM runs ORDER BY started_at DESC LIMIT %s", (limit,)
     )
+
+
+# ─── Scheduled articles ───────────────────────────────────────────────────────
+
+_VALID_SCHED_SORTS = {
+    "created_at", "updated_at", "scheduled_for", "title",
+    "keyword", "category", "status", "quality_score",
+}
+
+
+def create_scheduled_article(data: dict) -> int:
+    with get_db() as conn:
+        cur = conn.cursor()
+        cur.execute(
+            """INSERT INTO scheduled_articles
+               (title, keyword, category, status, scheduled_for,
+                article_data_json, generated_html, quality_score)
+               VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+               RETURNING id""",
+            (
+                data.get("title"), data["keyword"], data.get("category"),
+                data.get("status", "draft"), data.get("scheduled_for"),
+                data.get("article_data_json"), data.get("generated_html"),
+                data.get("quality_score"),
+            ),
+        )
+        return cur.fetchone()[0]
+
+
+def update_scheduled_article(id: int, data: dict) -> bool:
+    allowed = {
+        "title", "keyword", "category", "status", "scheduled_for",
+        "article_data_json", "generated_html", "quality_score", "published_article_id",
+    }
+    fields = {k: v for k, v in data.items() if k in allowed}
+    if not fields:
+        return False
+    set_clause = ", ".join(f"{k} = %s" for k in fields) + ", updated_at = NOW()"
+    values = list(fields.values()) + [id]
+    with get_db() as conn:
+        cur = conn.cursor()
+        cur.execute(
+            f"UPDATE scheduled_articles SET {set_clause} WHERE id = %s", values
+        )
+        return cur.rowcount > 0
+
+
+def delete_scheduled_article(id: int) -> bool:
+    with get_db() as conn:
+        cur = conn.cursor()
+        cur.execute("DELETE FROM scheduled_articles WHERE id = %s", (id,))
+        return cur.rowcount > 0
+
+
+def get_scheduled_articles(
+    status: Optional[str] = None,
+    search: Optional[str] = None,
+    sort: str = "created_at",
+    order: str = "desc",
+    limit: int = 15,
+    offset: int = 0,
+) -> tuple[list[dict], int]:
+    sort = sort if sort in _VALID_SCHED_SORTS else "created_at"
+    order_sql = "ASC" if order.lower() == "asc" else "DESC"
+
+    conditions: list[str] = []
+    params: list = []
+
+    if status:
+        conditions.append("status = %s")
+        params.append(status)
+    if search:
+        conditions.append("(title ILIKE %s OR keyword ILIKE %s OR category ILIKE %s)")
+        params.extend([f"%{search}%", f"%{search}%", f"%{search}%"])
+
+    where = ("WHERE " + " AND ".join(conditions)) if conditions else ""
+
+    total = _fetchval(f"SELECT COUNT(*) FROM scheduled_articles {where}", tuple(params)) or 0
+    rows = _fetchall(
+        f"SELECT id, title, keyword, category, status, scheduled_for, created_at, "
+        f"updated_at, quality_score, published_article_id, "
+        f"(generated_html IS NOT NULL AND generated_html != '') AS has_content "
+        f"FROM scheduled_articles {where} "
+        f"ORDER BY {sort} {order_sql} LIMIT %s OFFSET %s",
+        tuple(params) + (limit, offset),
+    )
+    return rows, total
+
+
+def get_scheduled_article(id: int) -> Optional[dict]:
+    return _fetchone(
+        "SELECT * FROM scheduled_articles WHERE id = %s", (id,)
+    )
+
+
+def get_scheduled_article_counts() -> dict:
+    rows = _fetchall(
+        "SELECT status, COUNT(*) AS n FROM scheduled_articles GROUP BY status"
+    )
+    counts = {r["status"]: r["n"] for r in rows}
+    return {
+        "draft":     counts.get("draft", 0),
+        "generating": counts.get("generating", 0),
+        "scheduled": counts.get("scheduled", 0),
+        "published": counts.get("published", 0),
+        "failed":    counts.get("failed", 0),
+        "total":     sum(counts.values()),
+    }
+
+
+def get_due_scheduled_articles() -> list[dict]:
+    """Articles with status='scheduled' whose scheduled_for time has arrived."""
+    return _fetchall(
+        "SELECT * FROM scheduled_articles "
+        "WHERE status = 'scheduled' AND scheduled_for <= NOW() "
+        "ORDER BY scheduled_for ASC LIMIT 5"
+    )
+
+
+def get_scheduled_article_keywords() -> set:
+    """Keywords in the scheduled queue (any non-failed status) — used to avoid duplicates."""
+    rows = _fetchall(
+        "SELECT keyword FROM scheduled_articles WHERE status NOT IN ('failed')"
+    )
+    return {r["keyword"].lower() for r in rows if r.get("keyword")}
+
+
+def publish_scheduled_article(scheduled_id: int, slug: str) -> int:
+    """
+    Move a scheduled article into the main articles table.
+    Returns the new article id.
+    Raises ValueError if the article has no generated content.
+    """
+    import json as _json
+
+    scheduled = get_scheduled_article(scheduled_id)
+    if not scheduled:
+        raise ValueError(f"Scheduled article {scheduled_id} not found")
+    if not scheduled.get("generated_html"):
+        raise ValueError(f"Scheduled article {scheduled_id} has no generated content yet")
+
+    # Parse stored metadata
+    try:
+        meta = _json.loads(scheduled.get("article_data_json") or "{}")
+    except Exception:
+        meta = {}
+
+    article_data = {
+        "title":            scheduled["title"] or scheduled["keyword"],
+        "slug":             slug,
+        "keyword":          scheduled["keyword"],
+        "category":         scheduled.get("category"),
+        "meta_description": meta.get("meta_description", ""),
+        "search_intent":    meta.get("search_intent", "informational"),
+        "excerpt":          meta.get("excerpt", ""),
+        "html_content":     scheduled["generated_html"],
+        "word_count":       meta.get("word_count", 0),
+        "reading_time":     meta.get("reading_time", 5),
+        "quality_score":    scheduled.get("quality_score") or meta.get("quality_score", 75),
+        "fact_check_notes": meta.get("fact_check_notes", ""),
+    }
+
+    article_id = save_article(article_data)
+
+    with get_db() as conn:
+        cur = conn.cursor()
+        cur.execute(
+            "UPDATE scheduled_articles "
+            "SET status = 'published', published_article_id = %s, updated_at = NOW() "
+            "WHERE id = %s",
+            (article_id, scheduled_id),
+        )
+
+    return article_id

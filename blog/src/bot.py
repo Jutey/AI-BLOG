@@ -42,7 +42,32 @@ def run_bot(articles_per_run: Optional[int] = None) -> bool:
             log_lines.append(msg)
 
         try:
-            # Pick next topic
+            # ── Priority: publish any due scheduled articles first ────────────
+            due = db.get_due_scheduled_articles()
+            if due:
+                scheduled = due[0]
+                seed_keyword = scheduled["keyword"]
+                log(f"Found due scheduled article: [{scheduled.get('category', '?')}] {seed_keyword}")
+
+                run_id = db.start_run(seed_keyword)
+                log(f"Run ID: {run_id}")
+
+                existing_slugs = db.get_published_slugs()
+                slug = generate_unique_slug(scheduled.get("title") or seed_keyword, existing_slugs)
+                log(f"Slug: {slug}")
+
+                article_id = db.publish_scheduled_article(scheduled["id"], slug)
+                log(f"Published scheduled article as ID {article_id}")
+
+                site_url = os.environ.get("SITE_URL", "").rstrip("/")
+                final_url = f"{site_url}/article/{slug}" if site_url else f"/article/{slug}"
+                log(f"Published at: {final_url}")
+
+                db.finish_run(run_id, "success", article_id, None, "\n".join(log_lines))
+                log("Scheduled article run complete ✓")
+                continue  # move to next iteration (handles ARTICLES_PER_DAY > 1)
+
+            # ── Normal topic rotation ─────────────────────────────────────────
             published_kws = db.get_published_keywords()
             log(f"Published articles so far: {len(published_kws)}")
 
