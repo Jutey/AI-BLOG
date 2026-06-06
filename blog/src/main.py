@@ -4,6 +4,7 @@ Initializes database, mounts routes, and starts the APScheduler background sched
 """
 import os
 import logging
+from datetime import datetime
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -99,9 +100,8 @@ def _start_scheduler():
 
 # ─── Error handlers ───────────────────────────────────────────────────────────
 
-@app.exception_handler(404)
-async def not_found_handler(request: Request, exc: HTTPException):
-    ctx = {
+def _error_ctx(request: Request, page_title: str) -> dict:
+    return {
         "request": request,
         "site_name": os.environ.get("SITE_NAME", "Dollar Draft"),
         "site_tagline": os.environ.get("SITE_TAGLINE", "Personal finance, simplified daily."),
@@ -111,16 +111,28 @@ async def not_found_handler(request: Request, exc: HTTPException):
         "favicon_svg": FAVICON_SVG,
         "all_categories": ALL_CATEGORIES,
         "contact_email": os.environ.get("CONTACT_EMAIL", ""),
-        "current_year": 2025,
-        "page_title": "Page Not Found — Dollar Draft",
+        "ai_disclosure": os.environ.get("ENABLE_AI_DISCLOSURE", "true").lower() == "true",
+        "adsense_client": "",
+        "current_year": datetime.utcnow().year,
+        "page_title": page_title,
     }
+
+
+@app.exception_handler(404)
+async def not_found_handler(request: Request, exc: HTTPException):
+    ctx = _error_ctx(request, "Page Not Found — Dollar Draft")
     return templates.TemplateResponse("404.html", ctx, status_code=404)
 
 
 @app.exception_handler(Exception)
 async def generic_exception_handler(request: Request, exc: Exception):
     logger.exception(f"Unhandled error on {request.url}: {exc}")
-    return HTMLResponse(
-        content="<h1>Something went wrong.</h1><p>Please try again shortly.</p>",
-        status_code=500,
-    )
+    # Return a proper 404/error page rather than a bare HTML string
+    ctx = _error_ctx(request, "Something went wrong — Dollar Draft")
+    try:
+        return templates.TemplateResponse("404.html", ctx, status_code=500)
+    except Exception:
+        return HTMLResponse(
+            content="<h1>Something went wrong.</h1><p>Please try again shortly.</p>",
+            status_code=500,
+        )

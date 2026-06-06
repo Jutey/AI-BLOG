@@ -1,5 +1,7 @@
 """
 All HTTP routes — public pages, SEO files, health check, and admin panel.
+All database calls are wrapped with try/except so the site stays up
+even when the database is unavailable or not yet configured.
 """
 import os
 import math
@@ -34,6 +36,17 @@ templates.env.filters["category_class"] = get_category_css_class
 templates.env.filters["category_style"] = get_category_style
 
 
+# ─── Safe DB helper ───────────────────────────────────────────────────────────
+
+def _safe_db(fn, *args, default=None, **kwargs):
+    """Call a database function and return default on any error."""
+    try:
+        return fn(*args, **kwargs)
+    except Exception as e:
+        logger.warning(f"DB call {fn.__name__} failed: {e}")
+        return default
+
+
 # ─── Context builder ─────────────────────────────────────────────────────────
 
 def _base_ctx(request: Request) -> dict:
@@ -61,17 +74,20 @@ def _base_ctx(request: Request) -> dict:
 @router.get("/")
 async def home(request: Request):
     ctx = _base_ctx(request)
-    featured = db.get_latest_article()
-    articles = db.get_articles(limit=9, offset=(1 if featured else 0))
+
+    featured = _safe_db(db.get_latest_article)
+    articles = _safe_db(db.get_articles, limit=9, offset=(1 if featured else 0), default=[])
     # Don't show featured article again in the grid
     if featured and articles and articles[0].get("id") == featured.get("id"):
         articles = articles[1:]
-    active_categories = db.get_categories()
+    active_categories = _safe_db(db.get_categories, default=[])
+    total_articles = _safe_db(db.get_article_count, default=0)
+
     ctx.update({
         "featured": featured,
         "articles": articles,
         "active_categories": active_categories,
-        "total_articles": db.get_article_count(),
+        "total_articles": total_articles,
         "page_title": f"{ctx['site_name']} — {ctx['site_tagline']}",
         "page_description": ctx["site_tagline"],
         "org_jsonld": organization_json_ld(ctx["site_name"], ctx["site_url"], ctx["site_tagline"]),
@@ -82,10 +98,10 @@ async def home(request: Request):
 
 @router.get("/article/{slug}")
 async def article_page(slug: str, request: Request):
-    article = db.get_article_by_slug(slug)
+    article = _safe_db(db.get_article_by_slug, slug)
     if not article:
         raise HTTPException(status_code=404, detail="Article not found")
-    related = db.get_related_articles(article.get("category", ""), slug, limit=3)
+    related = _safe_db(db.get_related_articles, article.get("category", ""), slug, limit=3, default=[])
     ctx = _base_ctx(request)
     site_url = ctx["site_url"]
     ctx.update({
@@ -104,9 +120,11 @@ async def article_page(slug: str, request: Request):
 async def category_page(category_name: str, request: Request, page: int = 1):
     per_page = 9
     offset = (page - 1) * per_page
-    articles, total = db.get_articles_by_category(category_name, limit=per_page, offset=offset)
+    result = _safe_db(db.get_articles_by_category, category_name, limit=per_page, offset=offset, default=([], 0))
+    articles, total = result if isinstance(result, tuple) else ([], 0)
     if page == 1 and not articles:
-        raise HTTPException(status_code=404, detail="Category not found")
+        # Return the page anyway with empty state — don't 404 on valid category names
+        total = 0
     total_pages = math.ceil(total / per_page) if total else 1
     ctx = _base_ctx(request)
     ctx.update({
@@ -128,41 +146,52 @@ async def category_page(category_name: str, request: Request, page: int = 1):
 
 @router.get("/sitemap.xml")
 async def sitemap(request: Request):
-    articles = db.get_all_articles_for_sitemap()
-    categories = db.get_categories()
+    articles = _safe_db(db.get_all_articles_for_sitemap, default=[])
+    categories = _safe_db(db.get_categories, default=[])
     ctx = _base_ctx(request)
     ctx.update({"articles": articles, "categories": categories})
-    resp = templates.TemplateResponse("sitemap.xml", ctx)
-    return Response(content=resp.body, media_type="application/xml")
+    content = templates.env.get_template("sitemap.xml").render(**ctx)
+    return Response(content=content, media_type="application/xml")
 
 
 @router.get("/rss.xml")
 async def rss_feed(request: Request):
-    articles = db.get_articles(limit=20)
+    articles = _safe_db(db.get_articles, limit=20, default=[])
     ctx = _base_ctx(request)
     ctx["articles"] = articles
-    resp = templates.TemplateResponse("rss.xml", ctx)
-    return Response(content=resp.body, media_type="application/rss+xml")
+    content = templates.env.get_template("rss.xml").render(**ctx)
+    return Response(content=content, media_type="application/rss+xml")
 
 
 @router.get("/robots.txt")
 async def robots(request: Request):
     ctx = _base_ctx(request)
-    resp = templates.TemplateResponse("robots.txt", ctx)
-    return Response(content=resp.body, media_type="text/plain")
+    content = templates.env.get_template("robots.txt").render(**ctx)
+    return Response(content=content, media_type="text/plain")
 
 
 # ─── Health ───────────────────────────────────────────────────────────────────
 
 @router.get("/health")
 async def health():
-    count = db.get_article_count()
-    latest = db.get_latest_article()
     scheduler_enabled = os.environ.get("ENABLE_SCHEDULER", "true").lower() == "true"
+    db_ok = False
+    count = 0
+    latest_title = None
+
+    try:
+        count = db.get_article_count()
+        latest = db.get_latest_article()
+        latest_title = latest.get("title") if latest else None
+        db_ok = True
+    except Exception as e:
+        logger.warning(f"Health check DB error: {e}")
+
     return JSONResponse({
-        "status": "ok",
+        "status": "ok" if db_ok else "degraded",
+        "database": "connected" if db_ok else "unavailable",
         "articles": count,
-        "latest_article": latest.get("title") if latest else None,
+        "latest_article": latest_title,
         "scheduler": "enabled" if scheduler_enabled else "disabled",
     })
 
@@ -178,10 +207,12 @@ def _check_admin(secret: str) -> bool:
 async def admin_dashboard(request: Request, secret: str = "", message: str = ""):
     if not _check_admin(secret):
         raise HTTPException(status_code=401, detail="Unauthorized — ADMIN_SECRET required")
-    articles = db.get_articles(limit=20)
-    runs = db.get_recent_runs(limit=10)
-    count = db.get_article_count()
+
+    articles = _safe_db(db.get_articles, limit=20, default=[])
+    runs = _safe_db(db.get_recent_runs, limit=10, default=[])
+    count = _safe_db(db.get_article_count, default=0)
     scheduler_enabled = os.environ.get("ENABLE_SCHEDULER", "true").lower() == "true"
+
     ctx = _base_ctx(request)
     ctx.update({
         "admin_secret": secret,
